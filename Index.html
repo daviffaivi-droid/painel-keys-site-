@@ -231,8 +231,8 @@
           type="text"
           id="apiBaseUrl"
           class="grow"
-          value="http://localhost:3000"
-          placeholder="URL base da API (ex: http://localhost:3000)..."
+          value="https://painel-keys-site.onrender.com"
+          placeholder="URL base da API (ex: https://painel-keys-site.onrender.com)..."
         />
         <button type="button" id="syncGetBtn">Sincronizar com API</button>
         <button type="button" class="secondary" id="syncPostBtn">Salvar na API</button>
@@ -326,6 +326,7 @@
   </div>
 
   <script>
+    const DEFAULT_API_URL = "https://painel-keys-site.onrender.com";
     const STORAGE_KEY = "FFH4X_KEYS_STORAGE_V1";
     const API_URL_STORAGE = "FFH4X_API_URL_V1";
     let currentKeys = [];
@@ -609,11 +610,10 @@
       renderKeys([], false, "localStorage limpo");
     });
 
-    // Restaura URL da API salva e carrega dados do localStorage ao abrir
+    // Restaura URL da API salva (ou usa a URL padrão do Render) e carrega dados do localStorage ao abrir
     const savedApiUrl = localStorage.getItem(API_URL_STORAGE);
-    if (savedApiUrl) {
-      document.getElementById("apiBaseUrl").value = savedApiUrl;
-    }
+    document.getElementById("apiBaseUrl").value =
+      savedApiUrl && !savedApiUrl.includes("localhost") ? savedApiUrl : DEFAULT_API_URL;
 
     const saved = loadFromLocalStorage();
     if (saved.length) {
