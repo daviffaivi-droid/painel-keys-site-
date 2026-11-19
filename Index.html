@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel de Keys - API, LocalStorage, Webhook e Gerador</title>
+  <style>
+    :root {
+      --bg: #0d0d12;
+      --card: #16161f;
+      --border: #2a2a3a;
+      --accent: #9600ff;
+      --text: #f3f3f7;
+      --muted: #9e9eb3;
+      --ok: #22c55e;
+      --warn: #eab308;
+      --off: #ef4444;
+    }
+
+    * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 22px;
+    }
+
+    p.sub {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .tab-btn {
+      background: var(--card);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 13px;
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    .toolbar, .url-bar, .gen-box {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 14px;
+      border-radius: 10px;
+      margin-bottom: 14px;
+    }
+
+    input[type="text"], input[type="number"], select, textarea {
+      background: #0f0f16;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+    }
+
+    input[type="text"].grow {
+      flex: 1;
+      min-width: 240px;
+    }
+
+    input[type="number"] {
+      width: 95px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 150px;
+      resize: vertical;
+      font-family: monospace;
+      margin-top: 10px;
+    }
+
+    button, .file-label {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 13px;
+    }
+
+    button.secondary {
+      background: #252534;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .stat .label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .stat .value {
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    th {
+      background: #1d1d29;
+      color: var(--muted);
+    }
+
+    .badge {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 12px;
+      display: inline-block;
+    }
+
+    .ativa { background: rgba(34, 197, 94, 0.18); color: var(--ok); }
+    .offline { background: rgba(239, 68, 68, 0.18); color: var(--off); }
+    .sim { color: var(--ok); font-weight: bold; }
+    .nao { color: var(--muted); }
+
+    .msg {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .field-group label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Controle de Keys</h1>
+    <p class="sub">Sincronizado com API, salvo no <strong>localStorage</strong>, com envio para Webhook e gerador de keys.</p>
+
+    <div class="tabs">
+      <button type="button" class="tab-btn active" data-tab="controleTab">Controle de Keys</button>
+      <button type="button" class="tab-btn" data-tab="gerarTab">Gerar Keys</button>
+    </div>
+
+    <!-- ABA 1: CONTROLE -->
+    <div id="controleTab" class="tab-panel active">
+      <div class="toolbar">
+        <label class="file-label" for="jsonFile">Selecionar JSON</label>
+        <input type="file" id="jsonFile" accept=".json,application/json" />
+        <button type="button" class="secondary" id="exportJsonBtn">Baixar JSON</button>
+        <button type="button" class="secondary" id="clearData">Limpar Tudo</button>
+        <span id="fileName" class="msg">Carregando localStorage...</span>
+      </div>
+
+      <div class="url-bar">
+        <input
+          type="text"
+          id="apiBaseUrl"
+          class="grow"
+          value="http://localhost:3000"
+          placeholder="URL base da API (ex: http://localhost:3000)..."
+        />
+        <button type="button" id="syncGetBtn">Sincronizar com API</button>
+        <button type="button" class="secondary" id="syncPostBtn">Salvar na API</button>
+      </div>
+
+      <div class="url-bar">
+        <input
+          type="text"
+          id="webhookUrl"
+          class="grow"
+          value="https://discord.com/api/webhooks/1572810997117362279/-8C_9Hp8ddOW8nXWHBUV9hhKQ43mIFssO5cKSoaZ-mWOb6DhWJ7sYvs89ZZH63BZUr90"
+          placeholder="URL do Webhook do Discord..."
+        />
+        <button type="button" id="sendWebhookBtn">Enviar p/ Webhook</button>
+      </div>
+
+      <div class="grid">
+        <div class="stat">
+          <div class="label">Total de Keys</div>
+          <div class="value" id="totalKeys">0</div>
+        </div>
+        <div class="stat">
+          <div class="label">Keys Usadas</div>
+          <div class="value" id="usedKeys" style="color: var(--warn);">0</div>
+        </div>
+        <div class="stat">
+          <div class="label">Keys Ativas</div>
+          <div class="value" id="activeKeys" style="color: var(--ok);">0</div>
+        </div>
+        <div class="stat">
+          <div class="label">Keys Offline</div>
+          <div class="value" id="offlineKeys" style="color: var(--off);">0</div>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Usada?</th>
+            <th>Status Atual</th>
+            <th>Usuário</th>
+            <th>Expira em</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="5" style="color: var(--muted);">Nenhuma key salva no localStorage.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ABA 2: GERAR KEYS -->
+    <div id="gerarTab" class="tab-panel">
+      <div class="gen-box">
+        <div class="field-group">
+          <label for="keyPrefix">Prefixo</label>
+          <input type="text" id="keyPrefix" value="NOX" style="width: 110px;" />
+        </div>
+
+        <div class="field-group">
+          <label for="keyDuration">Validade</label>
+          <select id="keyDuration">
+            <option value="1DIAS">1 Dias (1DIAS)</option>
+            <option value="7DIAS">7 Dias (7DIAS)</option>
+            <option value="15DIAS">15 Dias (15DIAS)</option>
+            <option value="30DIAS" selected>30 Dias (30DIAS)</option>
+            <option value="1ANO">1 Ano (1ANO)</option>
+            <option value="PERMANENTE">Permanente (PERMANENTE)</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label for="keyQty">Quantidade</label>
+          <input type="number" id="keyQty" min="1" max="500" value="5" />
+        </div>
+
+        <div class="field-group" style="align-self: flex-end;">
+          <button type="button" id="generateKeysBtn">Gerar e Salvar</button>
+        </div>
+
+        <div class="field-group" style="align-self: flex-end;">
+          <button type="button" class="secondary" id="copyGeneratedBtn">Copiar Keys</button>
+        </div>
+      </div>
+
+      <div class="gen-box" style="display: block;">
+        <div class="msg">Keys geradas (salvas automaticamente no localStorage):</div>
+        <textarea id="generatedOutput" readonly placeholder="As keys geradas aparecerão aqui..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "FFH4X_KEYS_STORAGE_V1";
+    const API_URL_STORAGE = "FFH4X_API_URL_V1";
+    let currentKeys = [];
+
+    // Alternância de abas
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.tab).classList.add("active");
+      });
+    });
+
+    function getCleanApiBase() {
+      const val = document.getElementById("apiBaseUrl").value.trim().replace(/\/+$/, "");
+      if (val) localStorage.setItem(API_URL_STORAGE, val);
+      return val;
+    }
+
+    function saveToLocalStorage(list) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+      } catch (err) {
+        console.error("Erro ao salvar no localStorage:", err);
+      }
+    }
+
+    function loadFromLocalStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return normalizeData(parsed);
+      } catch (err) {
+        console.error("Erro ao ler localStorage:", err);
+        return [];
+      }
+    }
+
+    function resetStats() {
+      document.getElementById("totalKeys").textContent = 0;
+      document.getElementById("usedKeys").textContent = 0;
+      document.getElementById("activeKeys").textContent = 0;
+      document.getElementById("offlineKeys").textContent = 0;
+      document.getElementById("tableBody").innerHTML =
+        '<tr><td colspan="5" style="color: var(--muted);">Nenhuma key salva no localStorage.</td></tr>';
+    }
+
+    function normalizeData(raw) {
+      if (Array.isArray(raw)) return raw;
+      if (raw && Array.isArray(raw.keys)) return raw.keys;
+      return [];
+    }
+
+    function computeCounts(list) {
+      const now = Date.now();
+      let used = 0;
+      let active = 0;
+      let offline = 0;
+
+      list.forEach((item) => {
+        const isUsed = Boolean(item.usada ?? item.used ?? (item.usuario && item.usuario !== "-"));
+        const expTime = item.expiraEm ? new Date(item.expiraEm).getTime() : null;
+        const isActive = isUsed && (expTime === null || (!Number.isNaN(expTime) && expTime > now));
+
+        if (isUsed) used++;
+        if (isActive) active++;
+        else offline++;
+      });
+
+      return { total: list.length, used, active, offline };
+    }
+
+    function renderKeys(list, persist = true, sourceLabel = null) {
+      currentKeys = Array.isArray(list) ? list : [];
+      if (persist) saveToLocalStorage(currentKeys);
+
+      const tbody = document.getElementById("tableBody");
+      tbody.innerHTML = "";
+
+      if (!currentKeys.length) {
+        resetStats();
+        document.getElementById("fileName").textContent = sourceLabel || "localStorage vazio";
+        return;
+      }
+
+      const now = Date.now();
+      const counts = computeCounts(currentKeys);
+
+      currentKeys.forEach((item) => {
+        const keyStr = item.key ?? item.chave ?? "SEM_KEY";
+        const isUsed = Boolean(item.usada ?? item.used ?? (item.usuario && item.usuario !== "-"));
+        const expTime = item.expiraEm ? new Date(item.expiraEm).getTime() : null;
+        const isActive = isUsed && (expTime === null || (!Number.isNaN(expTime) && expTime > now));
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><strong>${keyStr}</strong></td>
+          <td class="${isUsed ? "sim" : "nao"}">${isUsed ? "Sim" : "Não"}</td>
+          <td><span class="badge ${isActive ? "ativa" : "offline"}">${isActive ? "Ativa" : "Offline"}</span></td>
+          <td>${item.usuario ?? item.user ?? "-"}</td>
+          <td>${item.expiraEm ? new Date(item.expiraEm).toLocaleString("pt-BR") : "Não ativada / Sem expiração"}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById("totalKeys").textContent = counts.total;
+      document.getElementById("usedKeys").textContent = counts.used;
+      document.getElementById("activeKeys").textContent = counts.active;
+      document.getElementById("offlineKeys").textContent = counts.offline;
+      document.getElementById("fileName").textContent =
+        sourceLabel || `Salvo no localStorage (${counts.total} keys)`;
+    }
+
+    async function sincronizarComAPI(silent = false) {
+      const base = getCleanApiBase();
+      if (!base) {
+        if (!silent) alert("Informe a URL base da API.");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${base}/api/keys`);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        const keys = normalizeData(data);
+        renderKeys(keys, true, `Sincronizado da API (${keys.length} keys)`);
+        if (!silent) alert("Keys sincronizadas da API com sucesso!");
+      } catch (err) {
+        if (!silent) alert("Erro ao sincronizar com a API: " + err.message);
+      }
+    }
+
+    async function salvarListaNaAPI() {
+      const base = getCleanApiBase();
+      if (!base) return alert("Informe a URL base da API.");
+
+      try {
+        const res = await fetch(`${base}/api/keys`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ keys: currentKeys })
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        alert("Lista salva na API com sucesso!");
+      } catch (err) {
+        alert("Erro ao salvar na API: " + err.message);
+      }
+    }
+
+    function randomToken(len = 8) {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let out = "";
+      for (let i = 0; i < len; i++) {
+        out += chars[Math.floor(Math.random() * chars.length)];
+      }
+      return out;
+    }
+
+    document.getElementById("generateKeysBtn").addEventListener("click", () => {
+      const prefix = (document.getElementById("keyPrefix").value.trim() || "NOX").toUpperCase();
+      const duration = document.getElementById("keyDuration").value;
+      const qty = Math.min(500, Math.max(1, parseInt(document.getElementById("keyQty").value, 10) || 1));
+
+      const existingSet = new Set(currentKeys.map((k) => String(k.key ?? k.chave ?? "").toUpperCase()));
+      const createdStrings = [];
+      const createdObjects = [];
+
+      while (createdObjects.length < qty) {
+        const candidate = `${prefix}_${randomToken(8)}_${duration}`;
+        if (!existingSet.has(candidate)) {
+          existingSet.add(candidate);
+          createdStrings.push(candidate);
+          createdObjects.push({
+            key: candidate,
+            usada: false,
+            usuario: "-",
+            expiraEm: null,
+            validade: duration,
+            criadaEm: new Date().toISOString()
+          });
+        }
+      }
+
+      document.getElementById("generatedOutput").value = createdStrings.join("\n");
+      renderKeys([...currentKeys, ...createdObjects], true);
+    });
+
+    document.getElementById("copyGeneratedBtn").addEventListener("click", async () => {
+      const text = document.getElementById("generatedOutput").value;
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        alert("Keys copiados para a área de transferência.");
+      } catch {
+        document.getElementById("generatedOutput").select();
+        document.execCommand("copy");
+        alert("Keys selecionadas/copiadas.");
+      }
+    });
+
+    document.getElementById("syncGetBtn").addEventListener("click", () => sincronizarComAPI(false));
+    document.getElementById("syncPostBtn").addEventListener("click", salvarListaNaAPI);
+
+    document.getElementById("sendWebhookBtn").addEventListener("click", async () => {
+      const url = document.getElementById("webhookUrl").value.trim();
+      if (!url) return alert("Informe a URL do webhook.");
+
+      const counts = computeCounts(currentKeys);
+      const listaResumo = currentKeys.slice(0, 20).map((k) => `• \`${k.key}\` (${k.validade || "N/A"})`).join("\n") || "Nenhuma key";
+
+      const payload = {
+        content: "",
+        embeds: [
+          {
+            title: "📊 Resumo de Keys - Painel Web",
+            color: 9830655,
+            fields: [
+              { name: "Total", value: "```" + counts.total + "```", inline: true },
+              { name: "Usadas", value: "```" + counts.used + "```", inline: true },
+              { name: "Ativas / Offline", value: "```" + counts.active + " / " + counts.offline + "```", inline: true },
+              { name: "Keys (até 20)", value: listaResumo, inline: false }
+            ]
+          }
+        ]
+      };
+
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        alert("Resumo enviado para o Webhook com sucesso!");
+      } catch (err) {
+        alert("Falha ao enviar para o Webhook: " + err.message);
+      }
+    });
+
+    document.getElementById("exportJsonBtn").addEventListener("click", () => {
+      if (!currentKeys.length) {
+        alert("Não há keys para exportar.");
+        return;
+      }
+      const blob = new Blob([JSON.stringify({ keys: currentKeys }, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "keys_localstorage.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("jsonFile").addEventListener("change", (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          const keys = normalizeData(parsed);
+          if (!keys.length) {
+            alert("O JSON não contém uma lista de keys válida.");
+            return;
+          }
+          renderKeys(keys, true, `Importado: ${file.name}`);
+        } catch (err) {
+          alert("Erro ao ler o JSON: arquivo inválido.");
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    document.getElementById("clearData").addEventListener("click", () => {
+      localStorage.removeItem(STORAGE_KEY);
+      document.getElementById("jsonFile").value = "";
+      document.getElementById("generatedOutput").value = "";
+      renderKeys([], false, "localStorage limpo");
+    });
+
+    // Restaura URL da API salva e carrega dados do localStorage ao abrir
+    const savedApiUrl = localStorage.getItem(API_URL_STORAGE);
+    if (savedApiUrl) {
+      document.getElementById("apiBaseUrl").value = savedApiUrl;
+    }
+
+    const saved = loadFromLocalStorage();
+    if (saved.length) {
+      renderKeys(saved, false);
+    } else {
+      resetStats();
+      document.getElementById("fileName").textContent = "localStorage vazio";
+    }
+  </script>
+</body>
+</html>
